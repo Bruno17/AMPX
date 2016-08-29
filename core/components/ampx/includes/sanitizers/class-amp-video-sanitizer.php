@@ -1,74 +1,91 @@
 <?php
 
-require_once( AMP__DIR__ . '/includes/sanitizers/class-amp-base-sanitizer.php' );
+require_once (AMP__DIR__ . '/includes/sanitizers/class-amp-base-sanitizer.php');
 
 /**
  * Converts <video> tags to <amp-video>
  */
 class AMP_Video_Sanitizer extends AMP_Base_Sanitizer {
-	const FALLBACK_HEIGHT = 400;
+    const FALLBACK_HEIGHT = 400;
 
-	public static $tag = 'video';
+    public static $tag = 'video';
 
-	public function sanitize() {
-		$nodes = $this->dom->getElementsByTagName( self::$tag );
-		$num_nodes = $nodes->length;
-		if ( 0 === $num_nodes ) {
-			return;
-		}
+    public function sanitize() {
+        global $modx;
 
-		for ( $i = $num_nodes - 1; $i >= 0; $i-- ) {
-			$node = $nodes->item( $i );
-			$old_attributes = AMP_DOM_Utils::get_node_attributes_as_assoc_array( $node );
+        $nodes = $this->dom->getElementsByTagName(self::$tag);
+        $num_nodes = $nodes->length;
+        if (0 === $num_nodes) {
+            return;
+        }
 
-			$new_attributes = $this->filter_attributes( $old_attributes );
-			if ( ! isset( $new_attributes['width'], $new_attributes['height'] ) ) {
-				$new_attributes['height'] = self::FALLBACK_HEIGHT;
-				$new_attributes['layout'] = 'fixed-height';
-			}
-			$new_attributes = $this->enforce_sizes_attribute( $new_attributes );
+        for ($i = $num_nodes - 1; $i >= 0; $i--) {
+            $node = $nodes->item($i);
+            $old_attributes = AMP_DOM_Utils::get_node_attributes_as_assoc_array($node);
 
-			$new_node = AMP_DOM_Utils::create_node( $this->dom, 'amp-video', $new_attributes );
+            $new_attributes = $this->filter_attributes($old_attributes);
+            if (!isset($new_attributes['width'], $new_attributes['height'])) {
+                $new_attributes['height'] = self::FALLBACK_HEIGHT;
+                $new_attributes['layout'] = 'fixed-height';
+            }
 
-			// TODO: limit child nodes too (only allowed: `source`; move rest to div+fallback)
-			// TODO: `source` does not have closing tag, and DOMDocument doesn't handle it well.
-			foreach ( $node->childNodes as $child_node ) {
-				$new_child_node = $child_node->cloneNode( true );
-				$new_node->appendChild( $new_child_node );
-			}
+            $new_attributes = $this->enforce_sizes_attribute($new_attributes);
 
-			$node->parentNode->replaceChild( $new_node, $node );
-		}
-	}
+            $new_node = AMP_DOM_Utils::create_node($this->dom, 'amp-video', $new_attributes);
 
-	private function filter_attributes( $attributes ) {
-		$out = array();
+            // TODO: limit child nodes too (only allowed: `source`; move rest to div+fallback)
+            // TODO: `source` does not have closing tag, and DOMDocument doesn't handle it well.
+            $length = $node->childNodes->length;
+            for ($i = $length - 1; $i >= 0; $i--) {
+                $child_node = $node->childNodes->item($i);
+                $attributes = AMP_DOM_Utils::get_node_attributes_as_assoc_array($child_node);
+                if (isset($attributes['src'])) {
+                    $src = $attributes['src'];
+                    $src = AMP_Image_Dimension_Extractor::rel2abs($src, $modx->getOption('site_url'));
+                    $child_node->setAttribute('src', $src);
+                }
 
-		foreach ( $attributes as $name => $value ) {
-			switch ( $name ) {
-				case 'src':
-				case 'poster':
-				case 'width':
-				case 'height':
-				case 'class':
-				case 'sizes':
-					$out[ $name ] = $value;
-					break;
-				case 'controls':
-				case 'loop':
-				case 'muted':
-					if ( 'false' !== $value ) {
-						$out[ $name ] = 'true';
-					}
-					break;
-				case 'autoplay':
-					$out[ $name ] = 'desktop tablet mobile';
-					break;
-				default;
-					break;
-			}
-		}
+                $new_child_node = $child_node->cloneNode(true);
 
-		return $out;
-	}
+                //$src = $new_child_node->get_attribute('src');
+                $new_node->appendChild($new_child_node);
+
+            }
+
+            $node->parentNode->replaceChild($new_node, $node);
+        }
+
+    }
+
+
+    private function filter_attributes($attributes) {
+        $out = array();
+
+        foreach ($attributes as $name => $value) {
+            switch ($name) {
+                case 'src':
+                case 'poster':
+                case 'width':
+                case 'height':
+                case 'class':
+                case 'sizes':
+                    $out[$name] = $value;
+                    break;
+                case 'controls':
+                case 'loop':
+                case 'muted':
+                    if ('false' !== $value) {
+                        $out[$name] = '';
+                    }
+                    break;
+                case 'autoplay':
+                    $out[$name] = 'desktop tablet mobile';
+                    break;
+                default;
+                    break;
+            }
+        }
+
+        return $out;
+    }
 }

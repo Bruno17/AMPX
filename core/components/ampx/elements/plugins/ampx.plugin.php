@@ -28,8 +28,13 @@ switch ($modx->event->name) {
         $parts = explode('/', $search);
 
         if (isset($parts[1]) && $parts[1] == 'amp') {
+            $id = false;
+            //echo count($parts);die();
+            if (count($parts)==2 || empty($parts[2])){
+                $id = $modx->getOption('site_start');//seems to be the home-resource
+            }
             $url = str_replace('/amp/', '', $search);
-            if ($id = $modx->findResource($url)) {
+            if ($id || $id = $modx->findResource($url)) {
                 if ($resource = $modx->getObject('modResource', $id)) {
                     if ($template = $modx->getObject('modTemplate', $resource->get('template'))) {
                         $templatename = $template->get('templatename');
@@ -38,14 +43,19 @@ switch ($modx->event->name) {
                             //for SwitchTemplate
                             $_REQUEST['mode'] = $_GET['mode'] = 'amp_news';
                             $modx->setPlaceholder('+amp_site_url', $modx->getOption('site_url') . 'amp/');
+                            $modx->setPlaceholder('+is_amp', 'amp');
                             $modx->is_amp = 'amp';
                             //echo $_SERVER['REQUEST_URI'] . '<br>';
                             //echo $id;
                             //echo 'amp';
                             $modx->resourceIdentifier = $id;
                             $modx->resourceMethod = 'id';
+                        }else{
+                            //no AMP - template, fallback to normal template, evlt. run SwitchTemplate (to the same template) and modify internal links to /amp/ 
+                            $_REQUEST['mode'] = $_GET['mode'] = 'amp_fallback';
+                            $modx->setPlaceholder('+is_amp', 'amp_fallback');
                         }
-                        //send forward without template-switch
+                        //send forward with or without template-switch
                         $modx->sendForward($id);
                     }
                 }
@@ -66,12 +76,17 @@ switch ($modx->event->name) {
 
         $ampxCorePath .= '/';
 
-        $ampx = $modx->getService('ampx', 'Ampx', $ampxCorePath . 'model/ampx/');
-
-        //$mode = $_GET['mode'];
-        if ($mode == 'amp_news') {
+        if ($uncached && $mode == 'amp_news') {
+            $ampx = $modx->getService('ampx', 'Ampx', $ampxCorePath . 'model/ampx/');
             $ampx->sanitize($modx->eventoutput);
         }
+
+        if ($uncached && $mode == 'amp_fallback') {
+            $ampx = $modx->getService('ampx', 'Ampx', $ampxCorePath . 'model/ampx/',array('sanitizers' => array('AMP_Link_Sanitizer')));
+            $ampx->sanitize($modx->eventoutput);
+        }
+          
+
         break;
 }
 

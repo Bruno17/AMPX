@@ -25,14 +25,14 @@ class AMP_Link_Sanitizer extends AMP_Base_Sanitizer {
 			$node = $nodes->item( $i );
 			$attributes = AMP_DOM_Utils::get_node_attributes_as_assoc_array( $node );
             
-			if ( ! array_key_exists( 'href', $attributes ) ) {
+     		if ( ! array_key_exists( 'href', $attributes ) ) {
 				//$node->parentNode->removeChild( $node );
 				continue;
 			}
             
 			$attributes = $this->filter_attributes( $attributes );
            
-            $attributes['href'] = $this->rel2abs($attributes['href'], $modx->getOption('site_url') . 'amp/');
+            $attributes['href'] = AMP_Image_Dimension_Extractor::rel2abs($attributes['href'], $modx->getOption('site_url') . 'amp/');
             
             $node->setAttribute('href',$attributes['href']);
             
@@ -78,42 +78,6 @@ class AMP_Link_Sanitizer extends AMP_Base_Sanitizer {
 		return $out;
 	}
     
-    public function rel2abs($rel, $base) {
-
-        // parse base URL  and convert to local variables: $scheme, $host,  $path
-        extract(parse_url($base));
-
-        if (strpos($rel, "//") === 0) {
-            return $scheme . ':' . $rel;
-        }
-
-        // return if already absolute URL
-        if (parse_url($rel, PHP_URL_SCHEME) != '') {
-            return $rel;
-        }
-
-        // queries and anchors
-        if ($rel[0] == '#' || $rel[0] == '?') {
-            return $base . $rel;
-        }
-
-        // remove non-directory element from path
-        $path = preg_replace('#/[^/]*$#', '', $path);
-
-        // destroy path if relative url points to root
-        if ($rel[0] == '/') {
-            $path = '';
-        }
-
-        // dirty absolute URL
-        $abs = $host . $path . "/" . $rel;
-
-        // replace '//' or  '/./' or '/foo/../' with '/'
-        $abs = preg_replace("/(\/\.?\/)/", "/", $abs);
-        $abs = preg_replace("/\/(?!\.\.)[^\/]+\/\.\.\//", "/", $abs);
-
-        // absolute URL is ready!
-        return $scheme . '://' . $abs;
-    }    
+    
 
 }

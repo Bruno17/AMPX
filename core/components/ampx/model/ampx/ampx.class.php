@@ -9,11 +9,13 @@
  * @subpackage classfile
  */
 
-function absint( $maybeint ) {
-    return abs( intval( $maybeint ) );
+function absint($maybeint)
+{
+    return abs(intval($maybeint));
 }
 
-class Ampx {
+class Ampx
+{
     /**
      * A reference to the modX instance
      * @var modX $modx
@@ -44,7 +46,8 @@ class Ampx {
      * @param modX $modx A reference to the modX instance.
      * @param array $options An array of options. Optional.
      */
-    function __construct(modX & $modx, array $options = array()) {
+    function __construct(modX & $modx, array $options = array())
+    {
         $this->modx = &$modx;
 
         $this->modx->lexicon->load('ampx:default');
@@ -73,14 +76,15 @@ class Ampx {
             'templatesPath' => $corePath . 'templates/',
             'cachePath' => $this->modx->getOption('core_path') . 'cache/',
             'connectorUrl' => $assetsUrl . 'connector.php'), $options);
-
+            
         // Load parameters
-        $this->options = array_merge($this->options, array(
-            'mode_key' => $this->getOption('mode_key', $options, 'mode', true),
-            'cache_resource_key' => $this->getOption('cache_resource_key', $options, $this->modx->getOption(xPDO::OPT_CACHE_KEY, null, 'resource'), true),
-            'cache_resource_handler' => $this->getOption('cache_resource_handler', $options, $this->modx->getOption(xPDO::OPT_CACHE_HANDLER, null, 'xPDOFileCache'), true),
-            'cache_resource_expires' => (integer)$this->getOption('cache_resource_expires', $options, $this->modx->getOption(xPDO::OPT_CACHE_EXPIRES, null, 0), true),
-            'max_iterations' => (integer)$this->modx->getOption('parser_max_iterations', null, 10)));
+        $default_sanitizers = array(
+            'AMP_Img_Sanitizer',
+            'AMP_Link_Sanitizer',
+            'AMP_Form_Sanitizer',
+            'AMP_Video_Sanitizer',
+            'AMP_Blacklist_Sanitizer');
+        $this->options = array_merge(array('sanitizers' => $default_sanitizers) , $this->options);
 
         //$this->modx->addPackage('switchtemplate', $this->getOption('modelPath'));
         $this->modx->lexicon->load('ampx:default');
@@ -95,7 +99,8 @@ class Ampx {
      * @param bool $skipEmpty If true: use default value if option value is empty.
      * @return mixed The option value or the default value specified.
      */
-    public function getOption($key, $options = array(), $default = null, $skipEmpty = false) {
+    public function getOption($key, $options = array(), $default = null, $skipEmpty = false)
+    {
         $option = $default;
         if (!empty($key) && is_string($key)) {
             if ($options !== null && array_key_exists($key, $options) && !($skipEmpty && empty($options[$key]))) {
@@ -109,29 +114,32 @@ class Ampx {
         return $option;
     }
 
-    public function runSanitizer($sanitizer_class,& $dom, $args = array()) {
-        $filename = 'class-' . strtolower(str_replace('_','-',$sanitizer_class)) . '.php';
+    public function runSanitizer($sanitizer_class, &$dom, $args = array())
+    {
+        $filename = 'class-' . strtolower(str_replace('_', '-', $sanitizer_class)) . '.php';
         require_once (AMP__DIR__ . '/includes/sanitizers/' . $filename);
-        
+
         $sanitizer = new $sanitizer_class($dom, $args);
         if (!is_subclass_of($sanitizer, 'AMP_Base_Sanitizer')) {
             //_doing_it_wrong( __METHOD__, sprintf( __( 'Sanitizer (%s) must extend `AMP_Base_Sanitizer`', 'amp' ), esc_html( $sanitizer_class ) ), '0.1' );
-            
+
             return;
         }
         $sanitizer->sanitize();
         //$this->add_scripts( $sanitizer->get_scripts() );
-        
+
         return true;
     }
 
 
-    public function sanitize(&$output) {
+    public function sanitize(&$output)
+    {
         //$output = str_replace('<img ',' <img-amp', $output);
 
         require_once (AMP__DIR__ . '/includes/utils/class-amp-dom-utils.php');
         require_once (AMP__DIR__ . '/includes/sanitizers/class-amp-base-sanitizer.php');
         require_once (AMP__DIR__ . '/includes/embeds/class-amp-base-embed-handler.php');
+        require_once (AMP__DIR__ . '/includes/utils_modx/class-amp-image-dimension-extractor.php');
 
         //require_once (AMP__DIR__ . '/includes/class-amp-content.php');
 
@@ -147,15 +155,19 @@ class Ampx {
         require_once (AMP__DIR__ . '/includes/embeds/class-amp-instagram-embed.php');
         require_once (AMP__DIR__ . '/includes/embeds/class-amp-vine-embed.php');
         require_once (AMP__DIR__ . '/includes/embeds/class-amp-facebook-embed.php');
-
+        
+        require_once (AMP__DIR__ . '/includes/phpsimple/simplehtmldom_1_5/simple_html_dom.php');
+        
         $dom = AMP_DOM_Utils::get_dom_from_content($output);
         
-        $this->runSanitizer('AMP_Img_Sanitizer',$dom);
-        $this->runSanitizer('AMP_Link_Sanitizer',$dom);
-        $this->runSanitizer('AMP_Form_Sanitizer',$dom);
-       
-        $output = AMP_DOM_Utils::get_content_from_dom($dom);
+        $sanitizers = $this->getOption('sanitizers');
         
+        foreach ($sanitizers as $sanitizer) {
+            $this->runSanitizer($sanitizer, $dom);
+        }
+
+        $output = AMP_DOM_Utils::get_content_from_dom($dom,$output);
+
 
         return true;
     }

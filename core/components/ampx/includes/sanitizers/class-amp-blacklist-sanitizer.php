@@ -114,12 +114,12 @@ class AMP_Blacklist_Sanitizer extends AMP_Base_Sanitizer {
 			'object',
 			'param',
 			'applet',
-			'form',
+			//'form',
 			'label',
-			'input',
-			'textarea',
-			'select',
-			'option',
+			//'input',
+			//'textarea',
+			//'select',
+			//'option',
 			'link',
 
 			// These are converted into amp-* versions
