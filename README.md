@@ -11,5 +11,5 @@ Accelerated Mobile Pages (AMP) for MODX Revolution
 * Rewrites all relative links to absolute links with the "/amp/" - prefix
 * If there isn't a AMP - Template it laods the page with the normal template without switching to the AMP HTML
 * At normal pages with "/amp/" - prefix, AMPX converts all relative links to absolute links with "/amp/" - prefix
-* Add a canonical-tag with the URL of the normal page to pages, which was called with the "/amp/" - prefix
+* Add a canonical-tag with the URL of the normal page to pages, which was called with the "/amp/" - prefix by adding ``` [[!++is_amp:is=`amp_fallback`:then=`<link rel="canonical" href="[[~[[*id]]? &scheme=`full`]]" />`:else=``]] ``` to the head of your normal template
 
